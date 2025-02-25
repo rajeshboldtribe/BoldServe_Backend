@@ -111,65 +111,68 @@ const VALID_CATEGORIES = {
 // Routes
 router.post('/', uploadMiddleware, async (req, res) => {
     try {
-        const {
-            category,
-            subCategory,
-            productName,
-            price,
-            description,
-            offers,
-            review,
-            rating
-        } = req.body;
+        console.log('Received request body:', req.body);
+        console.log('Received files:', req.files);
 
-        // Validate category
-        if (!VALID_CATEGORIES[category]) {
-            return res.status(400).json({
-                success: false,
-                message: `Invalid category. Must be one of: ${Object.keys(VALID_CATEGORIES).join(', ')}`
-            });
-        }
+        // Process images
+        const imageUrls = req.files 
+            ? req.files.map(file => `/uploads/${file.filename}`)
+            : [];
 
-        // Validate subcategory
-        if (!VALID_CATEGORIES[category].includes(subCategory)) {
-            return res.status(400).json({
-                success: false,
-                message: 'Invalid subcategory',
-                validSubcategories: VALID_CATEGORIES[category]
-            });
-        }
-
-        // Log the number of files received
-        console.log(`Received ${req.files?.length || 0} images`);
-
+        // Create service data with required fields
         const serviceData = {
-            category: category.trim(),
-            subCategory: subCategory.trim(),
-            productName: productName.trim(),
-            price: Number(price),
-            description: description.trim(),
-            offers: offers ? offers.trim() : '',
-            review: review ? review.trim() : '',
-            rating: rating ? Number(rating) : 0,
-            images: req.files ? req.files.map(file => `/api/services/uploads/${file.filename}`) : []
+            name: req.body.productName, // Use productName as name
+            duration: req.body.duration || 0, // Set default duration if not provided
+            productName: req.body.productName,
+            category: req.body.category,
+            subCategory: req.body.subCategory,
+            price: parseFloat(req.body.price),
+            description: req.body.description || '',
+            offers: req.body.offers || '',
+            review: req.body.review || '',
+            rating: parseFloat(req.body.rating) || 0,
+            images: imageUrls
         };
+
+        // Validate required fields
+        const requiredFields = ['name', 'duration', 'productName', 'category', 'subCategory', 'price'];
+        const missingFields = requiredFields.filter(field => !serviceData[field]);
+
+        if (missingFields.length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: `Missing required fields: ${missingFields.join(', ')}`
+            });
+        }
 
         console.log('Creating service with data:', serviceData);
 
+        // Create and save the service
         const service = new Service(serviceData);
-        await service.save();
+        const savedService = await service.save();
+
+        console.log('Service saved successfully:', savedService);
 
         res.status(201).json({
             success: true,
-            message: `Product successfully added to ${subCategory} with ${serviceData.images.length} images`,
-            data: service
+            message: 'Service created successfully',
+            data: savedService
         });
+
     } catch (error) {
-        console.error('Error creating service:', error);
+        console.error('Service creation error:', {
+            message: error.message,
+            stack: error.stack,
+            errors: error.errors
+        });
+
         res.status(500).json({
             success: false,
             message: 'Error creating service',
-            error: error.message
+            error: {
+                message: error.message,
+                details: error.errors
+            }
         });
     }
 });
