@@ -44,6 +44,36 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://boldtribeinnovations:
     setTimeout(mongoConnect, 5000);
 });
 
+// Add this BEFORE all other routes and middleware
+app.get('/', (req, res) => {
+    res.json({
+        status: 'success',
+        message: 'BoldServe API is running successfully',
+        documentation: {
+            description: 'Available API Endpoints:',
+            base_url: process.env.NODE_ENV === 'production' 
+                ? process.env.API_URL 
+                : `http://localhost:${process.env.PORT || 8003}`,
+            endpoints: {
+                services: '/api/services',
+                categories: '/api/categories',
+                orders: '/api/orders',
+                users: '/api/users',
+                payments: '/api/payments',
+                products: '/api/products',
+                subcategories: '/api/subcategories',
+                admin: '/api/admin',
+                dashboard: '/api/dashboard'
+            }
+        }
+    });
+});
+
+// Test route to verify API is working
+app.get('/api/test', (req, res) => {
+    res.json({ message: 'API is working!' });
+});
+
 // Mount routes
 app.use('/api/services', serviceRoutes);
 app.use('/api/categories', categoryRoutes);
