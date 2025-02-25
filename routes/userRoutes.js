@@ -129,34 +129,77 @@ router.get('/debug-token', async (req, res) => {
     }
 });
 
-// Add this route if it doesn't exist
-router.get('/count', async (req, res) => {
+// Get all users (with adminAuth middleware)
+router.get('/', adminAuth, async (req, res) => {
     try {
-        const count = await User.countDocuments({ isAdmin: false }); // Count only non-admin users
-        res.json({ 
-            success: true, 
-            count: count 
+        console.log('Fetching all users...');
+        console.log('Auth token:', req.headers.authorization); // Debug log
+
+        // Fetch all non-admin users
+        const users = await User.find({ isAdmin: false })
+            .select('fullName email mobile address')
+            .sort({ createdAt: -1 });
+
+        console.log(`Found ${users.length} users`);
+
+        // Send response
+        res.status(200).json({
+            success: true,
+            data: users
         });
+
     } catch (error) {
-        res.status(500).json({ 
-            success: false, 
-            message: error.message 
+        console.error('Error fetching users:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching users',
+            error: error.message
         });
     }
 });
 
-// Get all users
-router.get('/', async (req, res) => {
+// Get single user by ID
+router.get('/:id', adminAuth, async (req, res) => {
     try {
-        const users = await User.find({});
-        res.json({ 
-            success: true, 
-            data: users 
+        const user = await User.findById(req.params.id)
+            .select('-password');
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            data: user
+        });
+
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error fetching user',
+            error: error.message
+        });
+    }
+});
+
+// Get users count
+router.get('/count', adminAuth, async (req, res) => {
+    try {
+        const count = await User.countDocuments({ isAdmin: false });
+        res.status(200).json({
+            success: true,
+            count: count
         });
     } catch (error) {
-        res.status(500).json({ 
-            success: false, 
-            message: error.message 
+        console.error('Error getting user count:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error getting user count',
+            error: error.message
         });
     }
 });

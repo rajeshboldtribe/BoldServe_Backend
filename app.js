@@ -12,7 +12,7 @@ const userRoutes = require('./routes/userRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const productRoutes = require('./routes/productRoutes');
 const subcategoriesRoute = require('./routes/subcategoriesRoute');
-const adminRoute = require('./routes/adminRoute');
+const adminRoutes = require('./routes/adminRoute');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
@@ -22,11 +22,10 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
     : ['http://localhost:3002', 'http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173'];
 
 app.use(cors({
-    origin: allowedOrigins,
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    origin: ['http://localhost:3000', 'https://your-frontend-domain.com'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    exposedHeaders: ['Content-Range', 'X-Content-Range']
+    credentials: true
 }));
 
 app.use(express.json());
@@ -82,7 +81,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/subcategories', subcategoriesRoute);
-app.use('/api/admin', adminRoute);
+app.use('/api/admin', adminRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/cart', categoryRoutes);
 

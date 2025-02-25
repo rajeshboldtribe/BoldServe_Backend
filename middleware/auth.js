@@ -86,47 +86,52 @@ const auth = async (req, res, next) => {
 // Create a new middleware for admin-only routes
 const adminAuth = async (req, res, next) => {
     try {
+        // Get token from header
         const authHeader = req.headers.authorization;
-        
-        // Log headers for debugging
-        console.log('Auth Headers:', req.headers);
-        console.log('Auth Header:', authHeader);
+        console.log('Auth header:', authHeader); // Debug log
 
         if (!authHeader) {
-            return res.status(401).json({ message: 'No authorization header' });
+            return res.status(401).json({
+                success: false,
+                message: 'No authorization token found'
+            });
         }
 
-        // Extract token
-        const token = authHeader.replace('Bearer ', '').trim();
-        
+        // Clean and verify token format
+        const token = authHeader.startsWith('Bearer ')
+            ? authHeader.slice(7)
+            : authHeader;
+
+        console.log('Token to verify:', token); // Debug log
+
         if (!token) {
-            return res.status(401).json({ message: 'No token provided' });
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid token format'
+            });
         }
 
         try {
-            // Log token before verification
-            console.log('Token to verify:', token);
-            
+            // Verify token
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            console.log('Decoded token:', decoded);
-            
+            console.log('Decoded token:', decoded); // Debug log
+
+            // Add user info to request
             req.user = decoded;
-            
-            if (!decoded.isAdmin) {
-                return res.status(403).json({ message: 'Admin access required' });
-            }
-            
             next();
         } catch (error) {
             console.error('Token verification error:', error);
-            return res.status(401).json({ 
-                message: 'Invalid token',
-                error: error.message 
+            return res.status(401).json({
+                success: false,
+                message: 'Invalid or expired token'
             });
         }
     } catch (error) {
         console.error('Auth middleware error:', error);
-        res.status(500).json({ message: 'Server error' });
+        return res.status(500).json({
+            success: false,
+            message: 'Server error in authentication'
+        });
     }
 };
 

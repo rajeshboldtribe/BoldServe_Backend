@@ -86,36 +86,52 @@ const userController = {
     loginUser: async (req, res) => {
         try {
             const { email, password } = req.body;
-            
+
+            // Find user
             const user = await User.findOne({ email });
             if (!user) {
-                return res.status(400).json({ message: 'Invalid credentials' });
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid credentials'
+                });
             }
 
-            const isMatch = await bcrypt.compare(password, user.password);
+            // Check password
+            const isMatch = await user.comparePassword(password);
             if (!isMatch) {
-                return res.status(400).json({ message: 'Invalid credentials' });
+                return res.status(401).json({
+                    success: false,
+                    message: 'Invalid credentials'
+                });
             }
 
+            // Generate token with longer expiration (24 hours)
             const token = jwt.sign(
-                { userId: user._id },
-                process.env.JWT_SECRET || 'your_jwt_secret',
-                { expiresIn: '24h' }
+                { 
+                    userId: user._id,
+                    isAdmin: user.isAdmin,
+                    role: user.role 
+                },
+                process.env.JWT_SECRET,
+                { expiresIn: '24h' } // Changed from default 1h to 24h
             );
 
             res.json({
+                success: true,
                 token,
                 user: {
                     id: user._id,
-                    fullName: user.fullName,
                     email: user.email,
-                    mobile: user.mobile,
-                    address: user.address,
-                    bio: user.bio
+                    isAdmin: user.isAdmin
                 }
             });
         } catch (error) {
-            res.status(500).json({ message: error.message });
+            console.error('Login error:', error);
+            res.status(500).json({
+                success: false,
+                message: 'Error during login',
+                error: error.message
+            });
         }
     },
 
