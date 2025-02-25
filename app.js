@@ -12,17 +12,14 @@ const userRoutes = require('./routes/userRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const productRoutes = require('./routes/productRoutes');
 const subcategoriesRoute = require('./routes/subcategoriesRoute');
-const adminRoutes = require('./routes/adminRoute');
+const adminRoute = require('./routes/adminRoute');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 
-const allowedOrigins = process.env.NODE_ENV === 'production'
-    ? (process.env.ALLOWED_ORIGINS || 'https://your-default-domain.com').split(',')
-    : ['http://localhost:3002', 'http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173'];
-
+// Enhanced CORS configuration
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://your-frontend-domain.com'],
+    origin: ['http://localhost:3000', 'http://localhost:3002', 'http://localhost:5000', 'http://localhost:5173', 'https://boldservebackend-production.up.railway.app'],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -31,19 +28,33 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Enhanced Debug middleware
+app.use((req, res, next) => {
+    console.log('Request received:', {
+        method: req.method,
+        path: req.path,
+        body: req.body,
+        headers: req.headers
+    });
+    next();
+});
+
 // Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGODB_URI || 'mongodb+srv://boldtribeinnovations:boldserve@cluster0.mgo6p.mongodb.net/')
-.then(() => console.log('📦 MongoDB Connected Successfully'))
-.catch(err => {
-    console.error('❌ MongoDB Connection Error:', err);
-    // Retry connection
-    setTimeout(mongoConnect, 5000);
+    .then(() => console.log('📦 MongoDB Connected Successfully'))
+    .catch(err => {
+        console.error('❌ MongoDB Connection Error:', err);
+    });
+
+// Test route
+app.get('/test', (req, res) => {
+    res.json({ message: 'Server is running' });
 });
 
-// Add this BEFORE all other routes and middleware
+// API Documentation route
 app.get('/', (req, res) => {
     res.json({
         status: 'success',
@@ -54,6 +65,7 @@ app.get('/', (req, res) => {
                 ? process.env.API_URL 
                 : `http://localhost:${process.env.PORT || 8003}`,
             endpoints: {
+                admin: '/api/admin',
                 services: '/api/services',
                 categories: '/api/categories',
                 orders: '/api/orders',
@@ -61,19 +73,24 @@ app.get('/', (req, res) => {
                 payments: '/api/payments',
                 products: '/api/products',
                 subcategories: '/api/subcategories',
-                admin: '/api/admin',
                 dashboard: '/api/dashboard'
             }
         }
     });
 });
 
-// Test route to verify API is working
-app.get('/api/test', (req, res) => {
-    res.json({ message: 'API is working!' });
+// Enhanced Debug middleware specifically for user routes
+app.use('/api/users', (req, res, next) => {
+    console.log('User route accessed:', {
+        method: req.method,
+        path: req.path,
+        headers: req.headers.authorization ? 'Auth header present' : 'No auth header'
+    });
+    next();
 });
 
 // Mount routes
+app.use('/api/admin', adminRoute);
 app.use('/api/services', serviceRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/orders', orderRoutes);
@@ -81,22 +98,25 @@ app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/subcategories', subcategoriesRoute);
-app.use('/api/admin', adminRoutes);
 app.use('/api/dashboard', dashboardRoutes);
-app.use('/api/cart', categoryRoutes);
 
-// Error handling middleware
+// Enhanced Error handling middleware
 app.use((err, req, res, next) => {
     console.error('🔥 Server Error:', err);
     res.status(err.status || 500).json({
-        success: false,
+        status: 'error',
         message: err.message || 'Something went wrong!',
-        error: process.env.NODE_ENV === 'development' ? err.stack : err.message
+        error: process.env.NODE_ENV === 'development' ? err.stack : err.message,
+        details: {
+            path: req.path,
+            method: req.method
+        }
     });
 });
 
-// 404 handler
+// Enhanced 404 handler
 app.use('*', (req, res) => {
+    console.log('404 - Route not found:', req.method, req.originalUrl);
     res.status(404).json({
         status: 'error',
         message: 'Route not found',
@@ -107,22 +127,22 @@ app.use('*', (req, res) => {
     });
 });
 
-// Create uploads directory
+// Create uploads directory if it doesn't exist
 const fs = require('fs');
 const uploadDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Start server
+// Start server with enhanced logging
 const PORT = process.env.PORT || 8003;
 app.listen(PORT, () => {
     console.log(`
 🚀 Server is running on port ${PORT}
 📁 Upload directory initialized
 🌐 API URL: http://localhost:${PORT}
+🔑 Admin login endpoint: http://localhost:${PORT}/api/admin/login
     `);
 });
 
-// Remove Firebase functions export
 module.exports = app;

@@ -6,10 +6,41 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const mongoose = require('mongoose');
 
-// Add debugging log
+// Debug middleware to log requests
 router.use((req, res, next) => {
-    console.log('User Route accessed:', req.method, req.url);
+    console.log('User Route accessed:', {
+        method: req.method,
+        path: req.path,
+        query: req.query,
+        body: req.body
+    });
     next();
+});
+
+// Public GET route for all users (no auth required)
+router.get('/', async (req, res) => {
+    try {
+        console.log('Fetching all users...');
+        const users = await User.find()
+            .select('fullName email mobile address')
+            .sort({ createdAt: -1 })
+            .lean();
+
+        console.log(`Found ${users.length} users`);
+        
+        return res.status(200).json({
+            success: true,
+            data: users
+        });
+
+    } catch (error) {
+        console.error('Error in GET /:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to fetch users',
+            error: error.message
+        });
+    }
 });
 
 // Admin routes
@@ -125,35 +156,6 @@ router.get('/debug-token', async (req, res) => {
             valid: false, 
             error: error.message,
             originalHeader: authHeader
-        });
-    }
-});
-
-// Get all users (with adminAuth middleware)
-router.get('/', adminAuth, async (req, res) => {
-    try {
-        console.log('Fetching all users...');
-        console.log('Auth token:', req.headers.authorization); // Debug log
-
-        // Fetch all non-admin users
-        const users = await User.find({ isAdmin: false })
-            .select('fullName email mobile address')
-            .sort({ createdAt: -1 });
-
-        console.log(`Found ${users.length} users`);
-
-        // Send response
-        res.status(200).json({
-            success: true,
-            data: users
-        });
-
-    } catch (error) {
-        console.error('Error fetching users:', error);
-        res.status(500).json({
-            success: false,
-            message: 'Error fetching users',
-            error: error.message
         });
     }
 });
@@ -334,6 +336,26 @@ const userSchema = new mongoose.Schema({
         default: ''
     }
     // ... other fields ...
+});
+
+// Add new route for fetching all users without auth
+router.get('/all', async (req, res) => {
+    try {
+        // Simple fetch all users
+        const users = await User.find()
+            .select('fullName email mobile address')
+            .lean();
+
+        // Send response
+        res.status(200).json(users);
+
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        res.status(500).json({
+            message: 'Failed to fetch users',
+            error: error.message
+        });
+    }
 });
 
 module.exports = router;

@@ -42,31 +42,22 @@ const initializeDefaultAdmin = async () => {
 // Call initialization when routes are loaded
 initializeDefaultAdmin();
 
-// Add this before your POST /login route
-router.get('/login', (req, res) => {
-    res.status(405).json({
-        success: false,
-        message: 'Method not allowed. Please use POST for login.',
-        correctUsage: {
-            method: 'POST',
-            endpoint: '/api/admin/login',
-            body: {
-                userId: 'string',
-                password: 'string'
-            }
-        }
-    });
+// Debug middleware for admin routes
+router.use((req, res, next) => {
+    console.log('Admin Route accessed:', req.method, req.url);
+    next();
 });
 
-// Login route - only allows the single admin account
+// Test route to verify admin routes are working
+router.get('/', (req, res) => {
+    res.json({ message: 'Admin routes are working' });
+});
+
+// Admin login route
 router.post('/login', async (req, res) => {
     try {
-        console.log('👉 Login attempt with:', {
-            userId: req.body.userId,
-            passwordProvided: !!req.body.password
-        });
-        
         const { userId, password } = req.body;
+        console.log('Login attempt received:', { userId }); // Debug log
 
         // Validate input
         if (!userId || !password) {
@@ -76,58 +67,36 @@ router.post('/login', async (req, res) => {
             });
         }
 
-        // Find admin
-        const admin = await Admin.findOne({ userId });
-        console.log('🔍 Admin found:', !!admin);
+        // Simple admin validation
+        if (userId === 'Admin' && password === 'Admin123') {
+            const token = jwt.sign(
+                {
+                    userId: 'Admin',
+                    isAdmin: true,
+                    role: 'admin'
+                },
+                process.env.JWT_SECRET || 'your-secret-key',
+                { expiresIn: '24h' }
+            );
 
-        if (!admin) {
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid credentials'
+            console.log('Login successful, sending token'); // Debug log
+
+            return res.json({
+                success: true,
+                token: `Bearer ${token}`,
+                message: 'Login successful'
             });
         }
 
-        // Verify password
-        const isMatch = await admin.comparePassword(password);
-        console.log('🔐 Password match:', isMatch);
-
-        if (!isMatch) {
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid credentials'
-            });
-        }
-
-        // Generate token with isAdmin flag
-        const token = jwt.sign(
-            { 
-                userId: admin.userId,
-                isAdmin: true,
-                role: 'admin'
-            },
-            process.env.JWT_SECRET || 'your_jwt_secret_key',
-            { expiresIn: '24h' }
-        );
-
-        console.log('✅ Login successful');
-
-        // Send token with Bearer prefix
-        res.json({
-            success: true,
-            token: `Bearer ${token}`,
-            message: 'Login successful',
-            admin: {
-                userId: admin.userId,
-                role: 'admin'
-            }
+        return res.status(401).json({
+            success: false,
+            message: 'Invalid credentials'
         });
-
     } catch (error) {
-        console.error('❌ Login error:', error);
+        console.error('Login error:', error);
         res.status(500).json({
             success: false,
-            message: 'Server error during login',
-            details: error.message
+            message: 'Server error during login'
         });
     }
 });
@@ -177,12 +146,6 @@ router.post('/logout', (req, res) => {
         success: true,
         message: 'Logged out successfully'
     });
-});
-
-// Debug middleware
-router.use((req, res, next) => {
-    console.log('Admin route accessed:', req.method, req.url);
-    next();
 });
 
 // Protected admin routes

@@ -86,37 +86,54 @@ const auth = async (req, res, next) => {
 // Create a new middleware for admin-only routes
 const adminAuth = async (req, res, next) => {
     try {
+        // Get the authorization header
         const authHeader = req.headers.authorization;
-        console.log('Auth header:', authHeader); // Debug log
-
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        
+        if (!authHeader) {
             return res.status(401).json({
                 success: false,
-                message: 'No authorization token found'
+                message: 'Authorization header missing'
             });
         }
 
-        const token = authHeader.split(' ')[1];
-        console.log('Token:', token); // Debug log
+        // Extract token
+        let token = '';
+        if (authHeader.startsWith('Bearer ')) {
+            token = authHeader.split(' ')[1];
+        } else {
+            token = authHeader;
+        }
+
+        if (!token) {
+            return res.status(401).json({
+                success: false,
+                message: 'Token not provided'
+            });
+        }
 
         try {
-            const decoded = jwt.verify(token, process.env.JWT_SECRET);
-            console.log('Decoded token:', decoded); // Debug log
+            // Verify token with your secret key
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
             
-            req.user = decoded;
+            // Add user info to request
+            req.user = {
+                userId: decoded.userId,
+                isAdmin: decoded.isAdmin
+            };
+            
             next();
         } catch (error) {
             console.error('Token verification error:', error);
             return res.status(401).json({
                 success: false,
-                message: 'Invalid token'
+                message: 'Invalid or expired token'
             });
         }
     } catch (error) {
         console.error('Auth middleware error:', error);
         return res.status(500).json({
             success: false,
-            message: 'Server error'
+            message: 'Server error during authentication'
         });
     }
 };
