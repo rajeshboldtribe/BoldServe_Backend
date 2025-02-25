@@ -17,11 +17,12 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 
 const app = express();
 
-// Middleware
+const allowedOrigins = process.env.NODE_ENV === 'production'
+    ? (process.env.ALLOWED_ORIGINS || 'https://your-default-domain.com').split(',')
+    : ['http://localhost:3002', 'http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173'];
+
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production' 
-        ? process.env.ALLOWED_ORIGINS.split(',')
-        : ['http://localhost:3002', 'http://localhost:3000', 'http://localhost:5000', 'http://localhost:5173'],
+    origin: allowedOrigins,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
