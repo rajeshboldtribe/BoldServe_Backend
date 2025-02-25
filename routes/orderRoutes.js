@@ -10,7 +10,7 @@ router.use(function(req, res, next) {
     console.log('Order Route accessed:', {
         method: req.method,
         path: req.path,
-        headers: req.headers
+        query: req.query
     });
     next();
 });
@@ -45,15 +45,39 @@ router.get('/count', adminAuth, async (req, res) => {
     }
 });
 
-// Get all orders - no auth required
+// Get all orders with optional status filter
 router.get('/', function(req, res) {
-    Order.find()
+    const { status } = req.query; // Get status from query parameter
+
+    // Create filter object based on status if provided
+    const filter = status ? { status } : {};
+
+    Order.find(filter)
         .sort({ createdAt: -1 })
         .then(function(orders) {
-            console.log(`Found ${orders.length} orders`);
+            console.log(`Found ${orders.length} orders${status ? ` with status: ${status}` : ''}`);
+            
+            // If no orders found, return empty array with success true
+            if (orders.length === 0) {
+                return res.json({
+                    success: true,
+                    message: `No orders found${status ? ` with status: ${status}` : ''}`,
+                    data: []
+                });
+            }
+
             res.json({
                 success: true,
-                data: orders
+                count: orders.length,
+                data: orders.map(order => ({
+                    _id: order._id,
+                    customerName: order.customerName,
+                    serviceName: order.serviceName,
+                    amount: order.amount,
+                    status: order.status,
+                    createdAt: order.createdAt,
+                    paymentStatus: order.paymentStatus || 'pending'
+                }))
             });
         })
         .catch(function(error) {
@@ -66,7 +90,29 @@ router.get('/', function(req, res) {
         });
 });
 
-// Get order by ID - no auth required
+// Get orders by status (accepted/cancelled) - no auth required
+router.get('/status/:status', function(req, res) {
+    const status = req.params.status;
+    Order.find({ status: status })
+        .sort({ createdAt: -1 })
+        .then(function(orders) {
+            console.log(`Found ${orders.length} ${status} orders`);
+            res.json({
+                success: true,
+                data: orders
+            });
+        })
+        .catch(function(error) {
+            console.error(`Error fetching ${status} orders:`, error);
+            res.status(500).json({
+                success: false,
+                message: `Error fetching ${status} orders`,
+                error: error.message
+            });
+        });
+});
+
+// Get specific order by ID
 router.get('/:orderId', function(req, res) {
     Order.findById(req.params.orderId)
         .then(function(order) {
@@ -78,7 +124,15 @@ router.get('/:orderId', function(req, res) {
             }
             res.json({
                 success: true,
-                data: order
+                data: {
+                    _id: order._id,
+                    customerName: order.customerName,
+                    serviceName: order.serviceName,
+                    amount: order.amount,
+                    status: order.status,
+                    createdAt: order.createdAt,
+                    paymentStatus: order.paymentStatus || 'pending'
+                }
             });
         })
         .catch(function(error) {
@@ -144,8 +198,5 @@ router.delete('/:orderId', function(req, res) {
             });
         });
 });
-
-// Get orders by status (accepted/cancelled)
-router.get('/status/:status', orderController.getOrdersByStatus);
 
 module.exports = router; 
