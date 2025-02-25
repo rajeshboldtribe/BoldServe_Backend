@@ -86,51 +86,37 @@ const auth = async (req, res, next) => {
 // Create a new middleware for admin-only routes
 const adminAuth = async (req, res, next) => {
     try {
-        // Get token from header
         const authHeader = req.headers.authorization;
         console.log('Auth header:', authHeader); // Debug log
 
-        if (!authHeader) {
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
             return res.status(401).json({
                 success: false,
                 message: 'No authorization token found'
             });
         }
 
-        // Clean and verify token format
-        const token = authHeader.startsWith('Bearer ')
-            ? authHeader.slice(7)
-            : authHeader;
-
-        console.log('Token to verify:', token); // Debug log
-
-        if (!token) {
-            return res.status(401).json({
-                success: false,
-                message: 'Invalid token format'
-            });
-        }
+        const token = authHeader.split(' ')[1];
+        console.log('Token:', token); // Debug log
 
         try {
-            // Verify token
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             console.log('Decoded token:', decoded); // Debug log
-
-            // Add user info to request
+            
             req.user = decoded;
             next();
         } catch (error) {
             console.error('Token verification error:', error);
             return res.status(401).json({
                 success: false,
-                message: 'Invalid or expired token'
+                message: 'Invalid token'
             });
         }
     } catch (error) {
         console.error('Auth middleware error:', error);
         return res.status(500).json({
             success: false,
-            message: 'Server error in authentication'
+            message: 'Server error'
         });
     }
 };
