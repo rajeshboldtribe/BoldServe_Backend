@@ -969,7 +969,7 @@ router.get('/admin/products', async (req, res) => {
     }
 });
 
-// Delete a product
+// Update the delete endpoint to match the frontend call
 router.delete('/admin/products/:productId', async (req, res) => {
     try {
         const { productId } = req.params;
